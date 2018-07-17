@@ -10,20 +10,34 @@ import sys
 import regression as reg
 from parsers import fsl_parser
 import pandas as pd
-from local_ancillary import gather_local_stats, add_site_covariates
+import warnings
+#from local_ancillary import gather_local_stats, add_site_covariates
+from sklearn.model_selection import train_test_split
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import statsmodels.api as sm
 
 
 def local_0(args):
     input_list = args["input"]
     lamb = input_list["lambda"]
 
-    (X, y) = fsl_parser(args)
-
+    (X_act, y_act) = fsl_parser(args)
+    
+    X = pd.concat([X_act.drop(axis=1, columns=['isControl']), y_act], axis=1, ignore_index=True)
+    y = X_act['isControl']
+    
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.33, random_state=1)
+    
     output_dict = {"computation_phase": "local_0"}
 
     cache_dict = {
-        "covariates": X.to_json(orient='records'),
-        "dependents": y.to_json(orient='records'),
+        "X_train": X_train.to_json(orient='records'),
+        "X_test": X_test.to_json(orient='records'),
+        "y_train": y_train.to_json(orient='records'),
+        "y_test": y_test.to_json(orient='records'),
         "lambda": lamb,
     }
 
@@ -39,30 +53,22 @@ def local_1(args):
     """Read data from the local sites, perform local regressions and send
     local statistics to the remote site"""
 
-    X = pd.read_json(args["cache"]["covariates"], orient='records')
-    y = pd.read_json(args["cache"]["dependents"], orient='records')
-    y_labels = list(y.columns)
+    X_train = pd.read_json(args["cache"]["X_train"], orient='records')
 
-    meanY_vector, lenY_vector, local_stats_list = gather_local_stats(X, y)
+    y_train = pd.read_json(args["cache"]["y_train"], orient='records')
 
-    augmented_X = add_site_covariates(args, X)
-
+    lenY_vector = len(y_train)
+    augmented_X = sm.add_constant(X_train)
     beta_vec_size = augmented_X.shape[1]
 
     output_dict = {
         "beta_vec_size": beta_vec_size,
-        "number_of_regressions": len(y_labels),
         "computation_phase": "local_1"
     }
 
     cache_dict = {
         "beta_vec_size": beta_vec_size,
-        "number_of_regressions": len(y_labels),
-        "covariates": augmented_X.to_json(orient='records'),
-        "y_labels": y_labels,
-        "mean_y_local": meanY_vector,
-        "count_local": lenY_vector,
-        "local_stats_list": local_stats_list
+        "count_local": lenY_vector
     }
 
     computation_output = {
@@ -173,22 +179,19 @@ def local_4(args):
     avg_beta_vector = input_list["avg_beta_vector"]
     mean_y_global = input_list["mean_y_global"]
 
-    SSE_local, SST_local = [], []
-    for index, column in enumerate(y.columns):
-        curr_y = y[column].values
-        SSE_local.append(
-            reg.sum_squared_error(biased_X, curr_y, avg_beta_vector))
-        SST_local.append(
-            np.sum(
-                np.square(np.subtract(curr_y, mean_y_global[index])),
-                dtype=float))
-
-    varX_matrix_local = np.dot(biased_X.T, biased_X)
+#    SSE_local, SST_local = [], []
+#    for index, column in enumerate(y.columns):
+#        curr_y = y[column].values
+#        SSE_local.append(
+#            reg.sum_squared_error(biased_X, curr_y, avg_beta_vector))
+#        SST_local.append(
+#            np.sum(
+#                np.square(np.subtract(curr_y, mean_y_global[index])),
+#                dtype=float))
+#
+#    varX_matrix_local = np.dot(biased_X.T, biased_X)
 
     output_dict = {
-        "SSE_local": SSE_local,
-        "SST_local": SST_local,
-        "varX_matrix_local": varX_matrix_local.tolist(),
         "computation_phase": "local_4"
     }
 

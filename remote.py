@@ -39,8 +39,8 @@ def remote_1(args):
     input_list = args["input"]
     first_user_id = list(input_list.keys())[0]
     beta_vec_size = input_list[first_user_id]["beta_vec_size"]
-    number_of_regressions = input_list[first_user_id]["number_of_regressions"]
-
+    number_of_regressions = 1
+    
     # Initial setup
     beta1 = 0.9
     beta2 = 0.999
