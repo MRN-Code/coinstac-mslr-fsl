@@ -7,17 +7,17 @@
   },
   "computation": {
     "type": "docker",
-    "dockerImage": "mslr_fsl",
+    "dockerImage": "mslr-fsl",
     "command": [
       "python",
-      "\/computation\/local.py"
+      "\/computation\/scripts\/local.py"
     ],
     "remote": {
       "type": "docker",
-      "dockerImage": "mslr_fsl",
+      "dockerImage": "mslr-fsl",
       "command": [
         "python",
-        "\/computation\/remote.py"
+        "\/computation\/scripts\/remote.py"
       ]
     },
     "input": {
